@@ -1,6 +1,6 @@
 {
   "name": "Roadster — Electric Hypercar & Performance Showroom",
-  "description": "Configure, compare, and reserve the next-generation Tesla Roadster and flagship electric performance vehicles with interactive telemetry, financing calculator, and bespoke build studio.",
+  "description": "Explore brand-new and foreign-used electric, hybrid, and luxury vehicles at RY WHEELS Showroom in Tse Addo, Accra. Inspect cars, park in your Garage, and inquire on WhatsApp.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

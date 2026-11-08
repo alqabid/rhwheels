@@ -1,0 +1,490 @@
+{
+  "entities": {
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted administrator record keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the administrator.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified email address of the administrator.",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the admin record was created."
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "GalleryItem": {
+      "title": "GalleryItem",
+      "description": "Client delivery and handover photograph displayed in the RY WHEELS Gallery.",
+      "type": "object",
+      "properties": {
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client featured in the photograph.",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "vehicleTitle": {
+          "type": "string",
+          "description": "Vehicle model delivered to the client.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "powertrain": {
+          "type": "string",
+          "description": "Powertrain category of the delivered vehicle.",
+          "enum": ["EV", "Hybrid", "Patrol / Petrol"]
+        },
+        "caption": {
+          "type": "string",
+          "description": "Story or handover note from Tse Addo High Street, Accra.",
+          "minLength": 5,
+          "maxLength": 500
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL, Storage URL, or compressed asset data URL of the client delivery photograph.",
+          "minLength": 1,
+          "maxLength": 600000
+        },
+        "locationTag": {
+          "type": "string",
+          "description": "Delivery location tag in Ghana.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "deliveredDate": {
+          "type": "string",
+          "description": "Display date of the vehicle handover.",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Visibility state enforced by list queries.",
+          "enum": ["public", "hidden"]
+        },
+        "authorId": {
+          "type": "string",
+          "description": "UID of the admin who published the gallery item.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "clientName",
+        "vehicleTitle",
+        "powertrain",
+        "caption",
+        "imageUrl",
+        "locationTag",
+        "deliveredDate",
+        "visibility",
+        "authorId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ClientReview": {
+      "title": "ClientReview",
+      "description": "Client review shared in the RY WHEELS Gallery section.",
+      "type": "object",
+      "properties": {
+        "authorId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the review author.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Display name of the client sharing the review.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "clientLocation": {
+          "type": "string",
+          "description": "City or neighborhood in Ghana (e.g., Tse Addo, East Legon, Airport Hills).",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "vehicleOwned": {
+          "type": "string",
+          "description": "Vehicle purchased or inspected at RY WHEELS.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "powertrain": {
+          "type": "string",
+          "description": "Powertrain category reviewed.",
+          "enum": ["EV", "Hybrid", "Patrol / Petrol"]
+        },
+        "rating": {
+          "type": "integer",
+          "description": "Rating from 1 to 5.",
+          "enum": [1, 2, 3, 4, 5]
+        },
+        "comment": {
+          "type": "string",
+          "description": "Client review message.",
+          "minLength": 5,
+          "maxLength": 600
+        },
+        "clientPhotoUrl": {
+          "type": "string",
+          "description": "Optional photo URL, Storage URL, or uploaded client handover image.",
+          "minLength": 0,
+          "maxLength": 600000
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Visibility status for public gallery feed.",
+          "enum": ["public", "hidden"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when review was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when review was last updated."
+        }
+      },
+      "required": [
+        "authorId",
+        "clientName",
+        "clientLocation",
+        "vehicleOwned",
+        "powertrain",
+        "rating",
+        "comment",
+        "clientPhotoUrl",
+        "visibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CustomVehicle": {
+      "title": "CustomVehicle",
+      "description": "Showroom vehicle managed from the Admin Control Panel.",
+      "type": "object",
+      "properties": {
+        "brandId": {
+          "type": "string",
+          "description": "Brand identifier.",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "titleLine1": {
+          "type": "string",
+          "description": "Primary vehicle model line.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "titleLine2": {
+          "type": "string",
+          "description": "Secondary vehicle trim/year line.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "powertrain": {
+          "type": "string",
+          "description": "Powertrain category.",
+          "enum": ["EV", "Hybrid", "Patrol / Petrol"]
+        },
+        "isPackage": {
+          "type": "boolean",
+          "description": "Whether vehicle is featured in Executive Deals."
+        },
+        "priceNumeric": {
+          "type": "number",
+          "description": "Price in Ghana Cedis (GHS)."
+        },
+        "engineText": {
+          "type": "string",
+          "description": "Engine or battery specification summary.",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "fuelEconomyOrRange": {
+          "type": "string",
+          "description": "Range or suspension highlight.",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "zeroToSixty": {
+          "type": "string",
+          "description": "0-60 acceleration time.",
+          "minLength": 2,
+          "maxLength": 30
+        },
+        "horsepower": {
+          "type": "string",
+          "description": "Horsepower rating.",
+          "minLength": 2,
+          "maxLength": 30
+        },
+        "image": {
+          "type": "string",
+          "description": "Vehicle image URL, Storage URL, or uploaded asset data URL.",
+          "minLength": 1,
+          "maxLength": 600000
+        },
+        "description": {
+          "type": "string",
+          "description": "Full showroom vehicle description.",
+          "minLength": 5,
+          "maxLength": 600
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Visibility state in showroom.",
+          "enum": ["public", "hidden"]
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Admin UID who created or updated the vehicle.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "brandId",
+        "titleLine1",
+        "titleLine2",
+        "powertrain",
+        "isPackage",
+        "priceNumeric",
+        "engineText",
+        "fuelEconomyOrRange",
+        "zeroToSixty",
+        "horsepower",
+        "image",
+        "description",
+        "visibility",
+        "authorId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "NewsPost": {
+      "title": "NewsPost",
+      "description": "News and update card displayed on the Welcome & News page.",
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string",
+          "description": "Category tag (e.g., TSE ADDO SHOWROOM).",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "date": {
+          "type": "string",
+          "description": "Display date label.",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "title": {
+          "type": "string",
+          "description": "Headline of the news post.",
+          "minLength": 4,
+          "maxLength": 140
+        },
+        "summary": {
+          "type": "string",
+          "description": "Summary body text.",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "actionLabel": {
+          "type": "string",
+          "description": "Button call-to-action label.",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "targetCategory": {
+          "type": "string",
+          "description": "Showroom category filter target.",
+          "enum": ["all", "EV", "Hybrid", "Patrol / Petrol", "Packages"]
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Visibility state.",
+          "enum": ["public", "hidden"]
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Admin UID who created the post.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "tag",
+        "date",
+        "title",
+        "summary",
+        "actionLabel",
+        "targetCategory",
+        "visibility",
+        "authorId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Global showroom contact, address, and announcement settings managed by Admin.",
+      "type": "object",
+      "properties": {
+        "showroomName": {
+          "type": "string",
+          "description": "Official showroom title.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "fullAddress": {
+          "type": "string",
+          "description": "Physical showroom address in Accra.",
+          "minLength": 4,
+          "maxLength": 160
+        },
+        "phone": {
+          "type": "string",
+          "description": "Primary showroom contact phone.",
+          "minLength": 4,
+          "maxLength": 40
+        },
+        "email": {
+          "type": "string",
+          "description": "Primary showroom contact email.",
+          "minLength": 4,
+          "maxLength": 120
+        },
+        "hours": {
+          "type": "string",
+          "description": "Opening hours string.",
+          "minLength": 4,
+          "maxLength": 120
+        },
+        "instagramHandle": {
+          "type": "string",
+          "description": "Instagram handle.",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "instagramUrl": {
+          "type": "string",
+          "description": "Full Instagram profile URL.",
+          "minLength": 8,
+          "maxLength": 250
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Public visibility flag.",
+          "enum": ["public"]
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "Admin UID who last updated settings.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of update."
+        }
+      },
+      "required": [
+        "showroomName",
+        "fullAddress",
+        "phone",
+        "email",
+        "hours",
+        "instagramHandle",
+        "instagramUrl",
+        "visibility",
+        "updatedBy",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Administrator registry keyed by user UID."
+    },
+    "/gallery/{galleryId}": {
+      "schema": { "$ref": "#/entities/GalleryItem" },
+      "description": "Client delivery and handover photos in the Gallery section."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/ClientReview" },
+      "description": "Client reviews and ratings shared in the Gallery section."
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/CustomVehicle" },
+      "description": "Showroom vehicles managed via the Admin Control Panel."
+    },
+    "/news/{newsId}": {
+      "schema": { "$ref": "#/entities/NewsPost" },
+      "description": "Showroom news highlights displayed on the Welcome & News page."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/SiteSettings" },
+      "description": "Global showroom configuration controlled by Admin."
+    }
+  }
+}

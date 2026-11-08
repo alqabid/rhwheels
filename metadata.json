@@ -1,0 +1,6 @@
+{
+  "name": "Roadster — Electric Hypercar & Performance Showroom",
+  "description": "Configure, compare, and reserve the next-generation Tesla Roadster and flagship electric performance vehicles with interactive telemetry, financing calculator, and bespoke build studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

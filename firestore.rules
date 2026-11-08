@@ -1,0 +1,310 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default-Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'siakaabdulqabid@gmail.com';
+    }
+    function isAdmin() {
+      return isVerifiedUser() && (
+        isBootstrappedAdmin() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Entity Blueprints
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidGalleryItem(data) {
+      return data.keys().hasAll([
+          'clientName', 'vehicleTitle', 'powertrain', 'caption', 'imageUrl',
+          'locationTag', 'deliveredDate', 'visibility', 'authorId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'clientName', 'vehicleTitle', 'powertrain', 'caption', 'imageUrl',
+          'locationTag', 'deliveredDate', 'visibility', 'authorId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.clientName is string && data.clientName.size() >= 2 && data.clientName.size() <= 100 &&
+        data.vehicleTitle is string && data.vehicleTitle.size() >= 2 && data.vehicleTitle.size() <= 120 &&
+        data.powertrain is string && data.powertrain in ['EV', 'Hybrid', 'Patrol / Petrol'] &&
+        data.caption is string && data.caption.size() >= 5 && data.caption.size() <= 500 &&
+        data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 600000 &&
+        data.locationTag is string && data.locationTag.size() >= 2 && data.locationTag.size() <= 120 &&
+        data.deliveredDate is string && data.deliveredDate.size() >= 2 && data.deliveredDate.size() <= 60 &&
+        data.visibility is string && data.visibility in ['public', 'hidden'] &&
+        data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 && data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidClientReview(data) {
+      return data.keys().hasAll([
+          'authorId', 'clientName', 'clientLocation', 'vehicleOwned', 'powertrain',
+          'rating', 'comment', 'clientPhotoUrl', 'visibility', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'authorId', 'clientName', 'clientLocation', 'vehicleOwned', 'powertrain',
+          'rating', 'comment', 'clientPhotoUrl', 'visibility', 'createdAt', 'updatedAt'
+        ]) &&
+        data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 && data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.clientName is string && data.clientName.size() >= 2 && data.clientName.size() <= 80 &&
+        data.clientLocation is string && data.clientLocation.size() >= 2 && data.clientLocation.size() <= 80 &&
+        data.vehicleOwned is string && data.vehicleOwned.size() >= 2 && data.vehicleOwned.size() <= 120 &&
+        data.powertrain is string && data.powertrain in ['EV', 'Hybrid', 'Patrol / Petrol'] &&
+        data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() >= 5 && data.comment.size() <= 600 &&
+        data.clientPhotoUrl is string && data.clientPhotoUrl.size() >= 0 && data.clientPhotoUrl.size() <= 600000 &&
+        data.visibility is string && data.visibility in ['public', 'hidden'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCustomVehicle(data) {
+      return data.keys().hasAll([
+          'brandId', 'titleLine1', 'titleLine2', 'powertrain', 'isPackage', 'priceNumeric',
+          'engineText', 'fuelEconomyOrRange', 'zeroToSixty', 'horsepower', 'image',
+          'description', 'visibility', 'authorId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'brandId', 'titleLine1', 'titleLine2', 'powertrain', 'isPackage', 'priceNumeric',
+          'engineText', 'fuelEconomyOrRange', 'zeroToSixty', 'horsepower', 'image',
+          'description', 'visibility', 'authorId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.brandId is string && data.brandId.size() >= 2 && data.brandId.size() <= 60 &&
+        data.titleLine1 is string && data.titleLine1.size() >= 2 && data.titleLine1.size() <= 80 &&
+        data.titleLine2 is string && data.titleLine2.size() >= 2 && data.titleLine2.size() <= 80 &&
+        data.powertrain is string && data.powertrain in ['EV', 'Hybrid', 'Patrol / Petrol'] &&
+        data.isPackage is bool &&
+        data.priceNumeric is number && data.priceNumeric >= 1000 && data.priceNumeric <= 100000000 &&
+        data.engineText is string && data.engineText.size() >= 2 && data.engineText.size() <= 140 &&
+        data.fuelEconomyOrRange is string && data.fuelEconomyOrRange.size() >= 2 && data.fuelEconomyOrRange.size() <= 140 &&
+        data.zeroToSixty is string && data.zeroToSixty.size() >= 2 && data.zeroToSixty.size() <= 30 &&
+        data.horsepower is string && data.horsepower.size() >= 2 && data.horsepower.size() <= 30 &&
+        data.image is string && data.image.size() >= 1 && data.image.size() <= 600000 &&
+        data.description is string && data.description.size() >= 5 && data.description.size() <= 600 &&
+        data.visibility is string && data.visibility in ['public', 'hidden'] &&
+        data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 && data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidNewsPost(data) {
+      return data.keys().hasAll([
+          'tag', 'date', 'title', 'summary', 'actionLabel', 'targetCategory',
+          'visibility', 'authorId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'tag', 'date', 'title', 'summary', 'actionLabel', 'targetCategory',
+          'visibility', 'authorId', 'createdAt', 'updatedAt'
+        ]) &&
+        data.tag is string && data.tag.size() >= 2 && data.tag.size() <= 50 &&
+        data.date is string && data.date.size() >= 2 && data.date.size() <= 50 &&
+        data.title is string && data.title.size() >= 4 && data.title.size() <= 140 &&
+        data.summary is string && data.summary.size() >= 10 && data.summary.size() <= 500 &&
+        data.actionLabel is string && data.actionLabel.size() >= 2 && data.actionLabel.size() <= 50 &&
+        data.targetCategory is string && data.targetCategory in ['all', 'EV', 'Hybrid', 'Patrol / Petrol', 'Packages'] &&
+        data.visibility is string && data.visibility in ['public', 'hidden'] &&
+        data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 && data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSiteSettings(data) {
+      return data.keys().hasAll([
+          'showroomName', 'fullAddress', 'phone', 'email', 'hours',
+          'instagramHandle', 'instagramUrl', 'visibility', 'updatedBy', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'showroomName', 'fullAddress', 'phone', 'email', 'hours',
+          'instagramHandle', 'instagramUrl', 'visibility', 'updatedBy', 'updatedAt'
+        ]) &&
+        data.showroomName is string && data.showroomName.size() >= 2 && data.showroomName.size() <= 120 &&
+        data.fullAddress is string && data.fullAddress.size() >= 4 && data.fullAddress.size() <= 160 &&
+        data.phone is string && data.phone.size() >= 4 && data.phone.size() <= 40 &&
+        data.email is string && data.email.size() >= 4 && data.email.size() <= 120 &&
+        data.hours is string && data.hours.size() >= 4 && data.hours.size() <= 120 &&
+        data.instagramHandle is string && data.instagramHandle.size() >= 2 && data.instagramHandle.size() <= 60 &&
+        data.instagramUrl is string && data.instagramUrl.size() >= 8 && data.instagramUrl.size() <= 250 &&
+        data.visibility is string && data.visibility == 'public' &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.updatedAt is timestamp;
+    }
+
+    // /admins/{adminId}
+    match /admins/{adminId} {
+      allow get: if isVerifiedUser() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
+      allow list: if isBootstrappedAdmin() && existing().uid == request.auth.uid;
+      allow create: if isBootstrappedAdmin() &&
+        isValidId(adminId) &&
+        isValidAdminRecord(incoming()) &&
+        incoming().uid == adminId &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isBootstrappedAdmin() && isValidId(adminId);
+    }
+
+    // /gallery/{galleryId}
+    match /gallery/{galleryId} {
+      allow get: if isValidId(galleryId) && (existing().visibility == 'public' || isAdmin());
+      allow list: if existing().visibility == 'public' || isBootstrappedAdmin();
+      allow create: if isVerifiedUser() &&
+        isValidId(galleryId) &&
+        isValidGalleryItem(incoming()) &&
+        incoming().authorId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+      allow update: if isVerifiedUser() &&
+        isValidId(galleryId) &&
+        isValidGalleryItem(incoming()) &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'clientName', 'vehicleTitle', 'powertrain', 'caption', 'imageUrl',
+          'locationTag', 'deliveredDate', 'visibility', 'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(galleryId) && isAdmin();
+    }
+
+    // /reviews/{reviewId}
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId) && (existing().visibility == 'public' || isAdmin());
+      allow list: if existing().visibility == 'public' || isBootstrappedAdmin();
+      allow create: if isVerifiedUser() &&
+        isValidId(reviewId) &&
+        isValidClientReview(incoming()) &&
+        incoming().authorId == request.auth.uid &&
+        incoming().visibility == 'public' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(reviewId) &&
+        isValidClientReview(incoming()) &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Author edits own review comment/rating
+          (
+            existing().authorId == request.auth.uid &&
+            incoming().visibility == existing().visibility &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'clientName', 'clientLocation', 'vehicleOwned', 'powertrain',
+              'rating', 'comment', 'clientPhotoUrl', 'updatedAt'
+            ])
+          ) ||
+          // Admin moderates or updates review
+          (
+            isAdmin() &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'clientName', 'clientLocation', 'vehicleOwned', 'powertrain',
+              'rating', 'comment', 'clientPhotoUrl', 'visibility', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(reviewId) && (existing().authorId == request.auth.uid || isAdmin());
+    }
+
+    // /vehicles/{vehicleId}
+    match /vehicles/{vehicleId} {
+      allow get: if isValidId(vehicleId) && (existing().visibility == 'public' || isAdmin());
+      allow list: if existing().visibility == 'public' || isBootstrappedAdmin();
+      allow create: if isVerifiedUser() &&
+        isValidId(vehicleId) &&
+        isValidCustomVehicle(incoming()) &&
+        incoming().authorId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+      allow update: if isVerifiedUser() &&
+        isValidId(vehicleId) &&
+        isValidCustomVehicle(incoming()) &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'brandId', 'titleLine1', 'titleLine2', 'powertrain', 'isPackage', 'priceNumeric',
+          'engineText', 'fuelEconomyOrRange', 'zeroToSixty', 'horsepower', 'image',
+          'description', 'visibility', 'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(vehicleId) && isAdmin();
+    }
+
+    // /news/{newsId}
+    match /news/{newsId} {
+      allow get: if isValidId(newsId) && (existing().visibility == 'public' || isAdmin());
+      allow list: if existing().visibility == 'public' || isBootstrappedAdmin();
+      allow create: if isVerifiedUser() &&
+        isValidId(newsId) &&
+        isValidNewsPost(incoming()) &&
+        incoming().authorId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+      allow update: if isVerifiedUser() &&
+        isValidId(newsId) &&
+        isValidNewsPost(incoming()) &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'tag', 'date', 'title', 'summary', 'actionLabel', 'targetCategory',
+          'visibility', 'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(newsId) && isAdmin();
+    }
+
+    // /settings/{settingId}
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId) && (existing().visibility == 'public' || isAdmin());
+      allow list: if existing().visibility == 'public';
+      allow create: if isVerifiedUser() &&
+        isValidId(settingId) &&
+        isValidSiteSettings(incoming()) &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+      allow update: if isVerifiedUser() &&
+        isValidId(settingId) &&
+        isValidSiteSettings(incoming()) &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'showroomName', 'fullAddress', 'phone', 'email', 'hours',
+          'instagramHandle', 'instagramUrl', 'updatedBy', 'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(settingId) && isAdmin();
+    }
+  }
+}

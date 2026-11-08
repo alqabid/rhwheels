@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-wide: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+:root {
+  --okw-brand-color1: #111111;
+  --okw-brand-color2: #000000;
+  --okw-brand-color3: #404040;
+  --okw-brand-color4: #585858;
+  --okw-brand-color5: rgb(17, 17, 17);
+  --okw-bg-color: #ffffff;
+  --okw-cover-bg-color: rgb(246, 246, 246);
+  --okw-background-light-color1: #ffffff;
+  --okw-background-light-color2: #f2f2f2;
+  --okw-dark-border-color1: #111111;
+  --okw-dark-border-color2: #d9d9d9;
+  --okw-dark-border-color3: #e6e6e6;
+  --okw-lighter-border-color: rgb(229, 229, 229);
+  --okw-deep-text-color: rgb(17, 17, 17);
+  --okw-dark-text-color1: #222222;
+  --okw-dark-text-color2: #737373;
+  --okw-light-text-color1: #ffffff;
+  --okw-border-radius-lg: 30px;
+  --okw-border-radius-md: 20px;
+  --okw-border-radius-sm: 15px;
+}
+
+@layer base {
+  *, ::after, ::before {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: var(--okw-bg-color);
+    color: var(--okw-deep-text-color);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  .font-display {
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-style: normal;
+  }
+
+  .font-wide {
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-style: normal;
+  }
+
+  .font-speedo {
+    font-family: 'Orbitron', 'Montserrat', sans-serif;
+  }
+}
+
+/* Custom Scrollbar in Monochrome Black & White */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #111111;
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Accordion plus/minus marker from chrisb.app/menu FooterWrapper */
+details.chrisb-accordion > summary {
+  list-style: none;
+  position: relative;
+  cursor: pointer;
+}
+details.chrisb-accordion > summary::-webkit-details-marker {
+  display: none;
+}
+details.chrisb-accordion > summary::before,
+details.chrisb-accordion > summary::after {
+  content: "";
+  width: 0.75em;
+  height: 0;
+  border-bottom: 2px solid currentColor;
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  transition: transform 0.2s ease;
+}
+details.chrisb-accordion > summary::after {
+  transform: translateY(-50%) rotate(90deg);
+}
+details.chrisb-accordion[open] > summary::after {
+  transform: translateY(-50%) rotate(0deg);
+}

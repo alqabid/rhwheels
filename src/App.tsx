@@ -25,21 +25,6 @@ import {
   Camera,
 } from 'lucide-react';
 import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-} from 'firebase/auth';
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  doc,
-  setDoc,
-  deleteDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
-import {
   whiteCarCutoutImg,
   MENU_CATEGORY_PILLS,
   RY_SHOWROOM_LOCATION,
@@ -61,7 +46,6 @@ import { ResilientImage } from './components/ResilientImage';
 import { GallerySection } from './components/GallerySection';
 import { NewsItemRecord } from './components/AdminControlSection';
 import { AdminPlatform } from './components/AdminPlatform';
-import { db, auth, googleProvider, OperationType, handleFirestoreError } from './firebase';
 
 const RY_LOGO_TRANSPARENT = '/assets/aistudio/_Logo_e05207a4.png';
 
@@ -326,10 +310,6 @@ export default function App() {
     }
   }, [showroomInfo]);
 
-  // --- Firebase Auth State ---
-  const [firebaseUserEmail, setFirebaseUserEmail] = useState<string | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
-
   // --- Animated Garage Door (Cart) State ---
   const [isGarageOpen, setIsGarageOpen] = useState(false);
   const [garageDoorPhase, setGarageDoorPhase] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
@@ -437,107 +417,8 @@ export default function App() {
     }, 2800);
   };
 
-  // --- Firebase Auth Listener (Used strictly for Admin Cloud Sync) ---
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      setFirebaseUserEmail(user?.email || null);
-      setIsAuthReady(true);
-    });
-    return () => unsub();
-  }, []);
-
-  // --- Real-Time Firestore Listeners for Public Gallery & Client Reviews ---
-  useEffect(() => {
-    if (!isAuthReady) return;
-
-    const reviewsQuery = query(collection(db, 'reviews'), where('visibility', '==', 'public'));
-    const unsubReviews = onSnapshot(
-      reviewsQuery,
-      (snap) => {
-        if (!snap.empty) {
-          const remoteReviews: ClientReviewRecord[] = snap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              authorId: data.authorId,
-              clientName: data.clientName,
-              clientLocation: data.clientLocation,
-              vehicleOwned: data.vehicleOwned,
-              powertrain: data.powertrain,
-              rating: data.rating,
-              comment: data.comment,
-              clientPhotoUrl: data.clientPhotoUrl || '',
-              createdAtLabel: 'Verified Client Review · Tse Addo',
-              visibility: data.visibility,
-            };
-          });
-          setClientReviews((prev) => {
-            const remoteIds = new Set(remoteReviews.map((r) => r.id));
-            const keptLocal = prev.filter((r) => !remoteIds.has(r.id));
-            return [...remoteReviews, ...keptLocal];
-          });
-        }
-      },
-      (err) => {
-        handleFirestoreError(err, OperationType.LIST, 'reviews');
-      }
-    );
-
-    const galleryQuery = query(collection(db, 'gallery'), where('visibility', '==', 'public'));
-    const unsubGallery = onSnapshot(
-      galleryQuery,
-      (snap) => {
-        if (!snap.empty) {
-          const remoteGallery: ClientGalleryPhoto[] = snap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              clientName: data.clientName,
-              vehicleTitle: data.vehicleTitle,
-              powertrain: data.powertrain,
-              caption: data.caption,
-              imageUrl: data.imageUrl,
-              locationTag: data.locationTag,
-              deliveredDate: data.deliveredDate,
-              visibility: data.visibility,
-            };
-          });
-          setGalleryPhotos((prev) => {
-            const remoteIds = new Set(remoteGallery.map((g) => g.id));
-            const keptLocal = prev.filter((g) => !remoteIds.has(g.id));
-            return [...remoteGallery, ...keptLocal];
-          });
-        }
-      },
-      (err) => {
-        handleFirestoreError(err, OperationType.LIST, 'gallery');
-      }
-    );
-
-    return () => {
-      unsubReviews();
-      unsubGallery();
-    };
-  }, [isAuthReady]);
-
-  // --- Google Sign-In for Admin / Verified Users ---
-  const handleGoogleAdminSignIn = async () => {
-    try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      showToast(`Signed in as ${cred.user.email}`);
-    } catch {
-      showToast('Google sign-in popup closed');
-    }
-  };
-
-  const handleAdminSignOut = async () => {
-    await signOut(auth);
-    setFirebaseUserEmail(null);
-    showToast('Signed out of Cloud Sync');
-  };
-
   // --- Add Client Review (Gallery Section) ---
-  const handleAddClientReview = async (
+  const handleAddClientReview = (
     newReview: Omit<ClientReviewRecord, 'id' | 'createdAtLabel'>
   ) => {
     const revId = `rev-${Date.now()}`;
@@ -549,56 +430,12 @@ export default function App() {
     setClientReviews((prev) => [localRecord, ...prev]);
     playLaunchSound();
     showToast(`Thank you, ${newReview.clientName}! Your review is live.`);
-
-    if (auth.currentUser && auth.currentUser.emailVerified) {
-      try {
-        await setDoc(doc(db, 'reviews', revId), {
-          authorId: auth.currentUser.uid,
-          clientName: newReview.clientName.slice(0, 80),
-          clientLocation: newReview.clientLocation.slice(0, 80),
-          vehicleOwned: newReview.vehicleOwned.slice(0, 120),
-          powertrain: newReview.powertrain,
-          rating: newReview.rating,
-          comment: newReview.comment.slice(0, 600),
-          clientPhotoUrl: newReview.clientPhotoUrl.slice(0, 590000),
-          visibility: 'public',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, `reviews/${revId}`);
-      }
-    }
   };
 
   // --- Admin Control Handlers ---
-  const handleAdminAddCar = async (newCar: ShowcaseCar) => {
+  const handleAdminAddCar = (newCar: ShowcaseCar) => {
     setCarsList((prev) => [newCar, ...prev]);
     showToast(`Added ${newCar.titleLine1} to Showroom`);
-    if (auth.currentUser && auth.currentUser.email === 'siakaabdulqabid@gmail.com') {
-      try {
-        await setDoc(doc(db, 'vehicles', newCar.id), {
-          brandId: newCar.brandId,
-          titleLine1: newCar.titleLine1.slice(0, 80),
-          titleLine2: newCar.titleLine2.slice(0, 80),
-          powertrain: newCar.powertrain,
-          isPackage: Boolean(newCar.isPackage),
-          priceNumeric: newCar.priceNumeric,
-          engineText: newCar.engineText.slice(0, 140),
-          fuelEconomyOrRange: newCar.fuelEconomyOrRange.slice(0, 140),
-          zeroToSixty: newCar.zeroToSixty.slice(0, 30),
-          horsepower: newCar.horsepower.slice(0, 30),
-          image: newCar.image.slice(0, 590000),
-          description: newCar.description.slice(0, 600),
-          visibility: 'public',
-          authorId: auth.currentUser.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, `vehicles/${newCar.id}`);
-      }
-    }
   };
 
   const handleAdminUpdateCar = (carId: string, updated: Partial<ShowcaseCar>) => {
@@ -633,30 +470,11 @@ export default function App() {
     showToast('Showroom fleet restored to default');
   };
 
-  const handleAdminAddGalleryPhoto = async (photo: Omit<ClientGalleryPhoto, 'id'>) => {
+  const handleAdminAddGalleryPhoto = (photo: Omit<ClientGalleryPhoto, 'id'>) => {
     const galId = `gal-${Date.now()}`;
     const created: ClientGalleryPhoto = { ...photo, id: galId };
     setGalleryPhotos((prev) => [created, ...prev]);
     showToast(`Added ${photo.clientName} to Client Gallery`);
-    if (auth.currentUser && auth.currentUser.email === 'siakaabdulqabid@gmail.com') {
-      try {
-        await setDoc(doc(db, 'gallery', galId), {
-          clientName: photo.clientName.slice(0, 100),
-          vehicleTitle: photo.vehicleTitle.slice(0, 120),
-          powertrain: photo.powertrain,
-          caption: photo.caption.slice(0, 500),
-          imageUrl: photo.imageUrl.slice(0, 590000),
-          locationTag: photo.locationTag.slice(0, 120),
-          deliveredDate: photo.deliveredDate.slice(0, 60),
-          visibility: 'public',
-          authorId: auth.currentUser.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, `gallery/${galId}`);
-      }
-    }
   };
 
   const handleAdminUpdateGalleryPhoto = (
@@ -668,16 +486,9 @@ export default function App() {
     );
   };
 
-  const handleAdminDeleteGalleryPhoto = async (id: string) => {
+  const handleAdminDeleteGalleryPhoto = (id: string) => {
     setGalleryPhotos((prev) => prev.filter((g) => g.id !== id));
     showToast('Gallery photo removed');
-    if (auth.currentUser && auth.currentUser.email === 'siakaabdulqabid@gmail.com' && id.startsWith('gal-1')) {
-      try {
-        await deleteDoc(doc(db, 'gallery', id));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `gallery/${id}`);
-      }
-    }
   };
 
   const handleAdminToggleReviewVisibility = (id: string) => {
@@ -1226,9 +1037,6 @@ export default function App() {
         onDeleteReservation={handleAdminDeleteReservation}
         showroomInfo={showroomInfo}
         onUpdateShowroomInfo={handleAdminUpdateShowroomInfo}
-        adminUserEmail={firebaseUserEmail}
-        onGoogleAdminSignIn={handleGoogleAdminSignIn}
-        onAdminSignOut={handleAdminSignOut}
       />
     );
   }
@@ -2144,8 +1952,6 @@ export default function App() {
             reviews={clientReviews}
             onAddReview={handleAddClientReview}
             onDeleteReview={handleAdminDeleteReview}
-            isAdmin={firebaseUserEmail === 'siakaabdulqabid@gmail.com'}
-            currentUserEmail={firebaseUserEmail}
             onEnterShowroom={(cat) => enterShowroom(cat)}
           />
         )}

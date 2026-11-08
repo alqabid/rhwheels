@@ -77,10 +77,6 @@ interface AdminControlSectionProps {
 
   showroomInfo: ShowRoomLocationType;
   onUpdateShowroomInfo: (updated: ShowRoomLocationType) => void;
-
-  adminUserEmail: string | null;
-  onGoogleAdminSignIn: () => void;
-  onAdminSignOut: () => void;
 }
 
 export function AdminControlSection({
@@ -105,9 +101,6 @@ export function AdminControlSection({
   onDeleteReservation,
   showroomInfo,
   onUpdateShowroomInfo,
-  adminUserEmail,
-  onGoogleAdminSignIn,
-  onAdminSignOut,
 }: AdminControlSectionProps) {
   const [activeTab, setActiveTab] = useState<
     'vehicles' | 'gallery' | 'reviews' | 'news' | 'reservations' | 'settings'
@@ -233,7 +226,7 @@ export function AdminControlSection({
 
   return (
     <div className="mt-4 rounded-[26px] border-2 border-[#111111] bg-[#f8f8f8] p-4 sm:p-6 text-[#111111] space-y-5">
-      {/* Top Admin Header & Cloud Sync Bar */}
+      {/* Top Admin Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d4d4d4] pb-4">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-2xl bg-[#111111] text-white flex items-center justify-center shrink-0">
@@ -247,34 +240,6 @@ export function AdminControlSection({
               Controls Vehicles, Client Gallery, Reviews, News &amp; Slideshow, Reservations, and Tse Addo Showroom Info
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {adminUserEmail ? (
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1.5 rounded-full bg-white border border-[#d4d4d4] text-[11px] font-bold text-[#111111] flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{adminUserEmail}</span>
-              </span>
-              <button
-                type="button"
-                onClick={onAdminSignOut}
-                className="px-3.5 py-1.5 rounded-full bg-[#111111] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-              >
-                <LogOut className="w-3 h-3" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onGoogleAdminSignIn}
-              className="px-4 py-2 rounded-full bg-[#111111] hover:bg-[#262626] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Admin Cloud Sync (Google)</span>
-            </button>
-          )}
         </div>
       </div>
 

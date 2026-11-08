@@ -25,7 +25,7 @@ import {
   clientHandoverBentleyImg,
 } from '../data/vehicles';
 import { ResilientImage } from './ResilientImage';
-import { uploadAdminImageFile } from '../firebase';
+import { uploadAdminImageFile } from '../utils/localImage';
 
 interface GallerySectionProps {
   galleryPhotos: ClientGalleryPhoto[];
@@ -36,7 +36,6 @@ interface GallerySectionProps {
   onAddReview: (newReview: Omit<ClientReviewRecord, 'id' | 'createdAtLabel'>) => Promise<void> | void;
   onDeleteReview?: (reviewId: string) => void;
   isAdmin?: boolean;
-  currentUserEmail?: string | null;
   onEnterShowroom: (category?: PowertrainCategory) => void;
 }
 

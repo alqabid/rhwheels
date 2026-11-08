@@ -13,8 +13,6 @@ import {
   Eye,
   EyeOff,
   RotateCcw,
-  LogIn,
-  LogOut,
   ExternalLink,
   Search,
   CheckCircle2,
@@ -44,7 +42,7 @@ import {
 } from './adminTypes';
 import { NewsItemRecord, ReservationAdminItem } from './AdminControlSection';
 import { ResilientImage } from './ResilientImage';
-import { uploadAdminImageFile } from '../firebase';
+import { uploadAdminImageFile } from '../utils/localImage';
 
 const RY_LOGO_TRANSPARENT = '/assets/aistudio/_Logo_e05207a4.png';
 
@@ -85,10 +83,6 @@ interface AdminPlatformProps {
 
   showroomInfo: ShowRoomLocationType;
   onUpdateShowroomInfo: (updated: ShowRoomLocationType) => void;
-
-  adminUserEmail: string | null;
-  onGoogleAdminSignIn: () => void;
-  onAdminSignOut: () => void;
 }
 
 type AdminSectionId =
@@ -138,9 +132,6 @@ export function AdminPlatform({
   onDeleteReservation,
   showroomInfo,
   onUpdateShowroomInfo,
-  adminUserEmail,
-  onGoogleAdminSignIn,
-  onAdminSignOut,
 }: AdminPlatformProps) {
   const [isPortalUnlocked, setIsPortalUnlocked] = useState<boolean>(true);
   const [adminUsernameInput, setAdminUsernameInput] = useState('admin@rywheels.com.gh');
@@ -644,33 +635,6 @@ export function AdminPlatform({
         </div>
 
         <div className="p-5 sm:p-6 border-t border-white/10 space-y-3 bg-[#080808]">
-          {adminUserEmail ? (
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <span className="text-xs font-bold text-white truncate block">
-                  {adminUserEmail}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={onAdminSignOut}
-                className="p-2 rounded-xl bg-white/10 hover:bg-white hover:text-[#111111] text-white transition-colors cursor-pointer"
-                title="Sign out"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onGoogleAdminSignIn}
-              className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Admin Sign-In</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onExitToStorefront}

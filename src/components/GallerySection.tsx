@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MessageSquarePlus,
   X,
   ArrowRight,
   Trash2,
-  Upload,
   ChevronLeft,
   ChevronRight,
   Users,
@@ -19,13 +18,10 @@ import {
   ExecutiveLeader,
   WORKPLACE_SLIDES,
   LEADERSHIP_TEAM,
+  RY_SHOWROOM_LOCATION,
   clientHandoverPatrolImg,
-  clientHandoverEvImg,
-  clientHandoverHybridImg,
-  clientHandoverBentleyImg,
 } from '../data/vehicles';
 import { ResilientImage } from './ResilientImage';
-import { uploadAdminImageFile } from '../utils/localImage';
 
 interface GallerySectionProps {
   galleryPhotos: ClientGalleryPhoto[];
@@ -33,18 +29,20 @@ interface GallerySectionProps {
   workplaceSlides?: WorkplaceSlide[];
   leaders?: ExecutiveLeader[];
   initialTab?: 'gallery' | 'bosses';
+  whatsappPhone?: string;
   onAddReview: (newReview: Omit<ClientReviewRecord, 'id' | 'createdAtLabel'>) => Promise<void> | void;
   onDeleteReview?: (reviewId: string) => void;
   isAdmin?: boolean;
   onEnterShowroom: (category?: PowertrainCategory) => void;
 }
 
-const PRESET_CLIENT_PHOTOS = [
-  { label: 'Patrol V8 Handover', url: clientHandoverPatrolImg },
-  { label: 'EV GT Showroom Handover', url: clientHandoverEvImg },
-  { label: 'Hybrid Saloon Delivery', url: clientHandoverHybridImg },
-  { label: 'Grand Tourer Handover', url: clientHandoverBentleyImg },
-];
+const toWhatsAppDigits = (rawPhone: string): string => {
+  const digits = rawPhone.replace(/\D/g, '');
+  if (digits.startsWith('0') && digits.length === 10) {
+    return `233${digits.slice(1)}`;
+  }
+  return digits || '233593207377';
+};
 
 export function GallerySection({
   galleryPhotos,
@@ -52,6 +50,7 @@ export function GallerySection({
   workplaceSlides = WORKPLACE_SLIDES,
   leaders = LEADERSHIP_TEAM,
   initialTab = 'gallery',
+  whatsappPhone = RY_SHOWROOM_LOCATION.phone,
   onAddReview,
   onDeleteReview,
   isAdmin = false,
@@ -61,6 +60,8 @@ export function GallerySection({
   const [selectedPowertrain, setSelectedPowertrain] = useState<'all' | 'EV' | 'Hybrid' | 'Patrol / Petrol'>('all');
   const [lightboxPhoto, setLightboxPhoto] = useState<ClientGalleryPhoto | null>(null);
   const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);
+  const reviewBoxRef = useRef<HTMLDivElement | null>(null);
+  const reviewTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Workplace Slideshow Loop State
   const [activeWorkplaceIdx, setActiveWorkplaceIdx] = useState(0);
@@ -68,6 +69,17 @@ export function GallerySection({
   useEffect(() => {
     setActiveSubTab(initialTab);
   }, [initialTab]);
+
+  // Pre-decode all workplace slides in background so slide transitions never flicker or lag
+  useEffect(() => {
+    workplaceSlides.forEach((s) => {
+      if (s.imageUrl) {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = s.imageUrl;
+      }
+    });
+  }, [workplaceSlides]);
 
   useEffect(() => {
     if (workplaceSlides.length <= 1) return;
@@ -77,18 +89,18 @@ export function GallerySection({
     return () => window.clearInterval(timer);
   }, [workplaceSlides.length]);
 
-  // Review Form State
+  // Simple Review Text Box State -> Sends directly to WhatsApp
   const [clientName, setClientName] = useState('');
-  const [clientLocation, setClientLocation] = useState('Tse Addo, Accra');
-  const [vehicleOwned, setVehicleOwned] = useState('2026 Patrol V8 Platinum');
-  const [powertrain, setPowertrain] = useState<'EV' | 'Hybrid' | 'Patrol / Petrol'>('Patrol / Petrol');
   const [rating, setRating] = useState<number>(5);
   const [comment, setComment] = useState('');
-  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string>(clientHandoverPatrolImg);
-  const [customPhotoUrl, setCustomPhotoUrl] = useState<string>('');
-  const [uploadedPhotoName, setUploadedPhotoName] = useState<string | null>(null);
-  const [isUploadingReviewPhoto, setIsUploadingReviewPhoto] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const openReviewTextBox = () => {
+    setIsReviewFormOpen(true);
+    window.setTimeout(() => {
+      reviewBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      reviewTextareaRef.current?.focus();
+    }, 80);
+  };
 
   const visibleGallery = galleryPhotos.filter(
     (item) =>
@@ -102,30 +114,39 @@ export function GallerySection({
       (selectedPowertrain === 'all' || rev.powertrain === selectedPowertrain)
   );
 
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!clientName.trim() || !comment.trim()) return;
-    setIsSubmitting(true);
-    try {
-      const finalPhoto = customPhotoUrl.trim() ? customPhotoUrl.trim() : selectedPhotoUrl;
-      await onAddReview({
-        clientName: clientName.trim().slice(0, 80),
-        clientLocation: (clientLocation.trim() || 'Accra, Ghana').slice(0, 80),
-        vehicleOwned: (vehicleOwned.trim() || 'RY WHEELS Vehicle').slice(0, 120),
-        powertrain,
-        rating,
-        comment: comment.trim().slice(0, 600),
-        clientPhotoUrl: finalPhoto.slice(0, 590000),
-        visibility: 'public',
-      });
+  const buildReviewWhatsAppUrl = () => {
+    const phoneDigits = toWhatsAppDigits(whatsappPhone);
+    const trimmedComment = comment.trim();
+    const senderLabel = clientName.trim() ? clientName.trim() : 'Client';
+    const stars = '★'.repeat(rating);
+    const lines = [
+      `Hello RY WHEELS, I would like to share a review:`,
+      ``,
+      `"${trimmedComment}"`,
+      ``,
+      `• Rating: ${stars} (${rating}/5)`,
+      `• From: ${senderLabel}`,
+    ];
+    return `https://wa.me/${phoneDigits}?text=${encodeURIComponent(lines.join('\n'))}`;
+  };
+
+  const handleSendReviewToWhatsApp = () => {
+    if (!comment.trim()) return;
+    onAddReview({
+      clientName: (clientName.trim() || 'RY WHEELS Client').slice(0, 80),
+      clientLocation: 'Accra, Ghana',
+      vehicleOwned: 'RY WHEELS Showroom',
+      powertrain: 'Patrol / Petrol',
+      rating,
+      comment: comment.trim().slice(0, 600),
+      clientPhotoUrl: clientHandoverPatrolImg,
+      visibility: 'public',
+    });
+    window.setTimeout(() => {
       setClientName('');
       setComment('');
-      setCustomPhotoUrl('');
-      setUploadedPhotoName(null);
       setIsReviewFormOpen(false);
-    } finally {
-      setIsSubmitting(false);
-    }
+    }, 150);
   };
 
   return (
@@ -181,11 +202,17 @@ export function GallerySection({
           {activeSubTab === 'gallery' && (
             <button
               type="button"
-              onClick={() => setIsReviewFormOpen((prev) => !prev)}
+              onClick={() => {
+                if (isReviewFormOpen) {
+                  setIsReviewFormOpen(false);
+                } else {
+                  openReviewTextBox();
+                }
+              }}
               className="px-4 py-2 rounded-[30px] border border-[#111111] bg-white hover:bg-[#111111] hover:text-white text-[#111111] text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <MessageSquarePlus className="w-3.5 h-3.5" />
-              <span>{isReviewFormOpen ? 'Close' : 'Add Review'}</span>
+              <span>{isReviewFormOpen ? 'Close Review' : 'Write Review'}</span>
             </button>
           )}
         </div>
@@ -262,6 +289,8 @@ export function GallerySection({
                       <ResilientImage
                         src={slide.imageUrl}
                         alt={slide.title}
+                        loading="eager"
+                        fetchPriority="high"
                         className="absolute inset-0 w-full h-full object-cover object-center opacity-95"
                       />
                       <div className="relative z-10 flex-1 bg-gradient-to-t from-black/85 via-black/20 to-black/15 p-5 sm:p-8 lg:p-10 flex flex-col justify-between gap-4 min-h-[320px] sm:min-h-[440px] md:min-h-[460px] lg:min-h-[500px] xl:min-h-[530px]">
@@ -338,20 +367,26 @@ export function GallerySection({
           )}
 
           {/* =================================================================
-              INTERACTIVE "ADD REVIEW" FORM DRAWER
+              SIMPLE REVIEW TEXT BOX -> SENDS DIRECTLY TO WHATSAPP
              ================================================================= */}
           <AnimatePresence>
             {isReviewFormOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -12 }}
+                ref={reviewBoxRef}
+                initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                className="rounded-[28px] border-2 border-[#111111] bg-white p-5 sm:p-7 shadow-lg"
+                exit={{ opacity: 0, y: -10 }}
+                className="rounded-[26px] border-2 border-[#111111] bg-white p-5 sm:p-6 shadow-lg space-y-4"
               >
-                <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3.5 mb-4">
-                  <h3 className="font-sans font-extrabold text-base text-[#111111] uppercase">
-                    Add Client Review
-                  </h3>
+                <div className="flex items-center justify-between border-b border-[#e5e5e5] pb-3">
+                  <div>
+                    <h3 className="font-sans font-extrabold text-sm sm:text-base text-[#111111] uppercase">
+                      Write Your Review
+                    </h3>
+                    <p className="text-[11px] text-[#666666]">
+                      Type your message below and send it directly to RY WHEELS on WhatsApp
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setIsReviewFormOpen(false)}
@@ -361,173 +396,78 @@ export function GallerySection({
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmitReview} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#111111]">Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      placeholder="Your Name"
-                      className="w-full px-4 py-2.5 rounded-[50px] border border-[#d4d4d4] text-sm text-[#111111] focus:outline-none focus:border-[#111111]"
-                    />
-                  </div>
+                <div className="space-y-3">
+                  <textarea
+                    ref={reviewTextareaRef}
+                    rows={4}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Type your review or experience with RY WHEELS here..."
+                    className="w-full px-4 py-3 rounded-[18px] border border-[#d4d4d4] bg-[#fafafa] focus:bg-white text-sm text-[#111111] focus:outline-none focus:border-[#111111] transition-colors"
+                  />
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#111111]">Location</label>
-                    <input
-                      type="text"
-                      value={clientLocation}
-                      onChange={(e) => setClientLocation(e.target.value)}
-                      placeholder="Tse Addo, Accra"
-                      className="w-full px-4 py-2.5 rounded-[50px] border border-[#d4d4d4] text-sm text-[#111111] focus:outline-none focus:border-[#111111]"
-                    />
-                  </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <input
+                        type="text"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        placeholder="Your Name (optional)"
+                        className="px-4 py-2 rounded-full border border-[#d4d4d4] bg-white text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111]"
+                      />
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#111111]">Vehicle</label>
-                    <input
-                      type="text"
-                      value={vehicleOwned}
-                      onChange={(e) => setVehicleOwned(e.target.value)}
-                      placeholder="2026 Patrol V8 Platinum"
-                      className="w-full px-4 py-2.5 rounded-[50px] border border-[#d4d4d4] text-sm text-[#111111] focus:outline-none focus:border-[#111111]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-[#111111]">Type</label>
-                      <select
-                        value={powertrain}
-                        onChange={(e) =>
-                          setPowertrain(e.target.value as 'EV' | 'Hybrid' | 'Patrol / Petrol')
-                        }
-                        className="w-full px-4 py-2.5 rounded-[50px] border border-[#d4d4d4] bg-white text-xs sm:text-sm font-semibold text-[#111111] focus:outline-none focus:border-[#111111]"
-                      >
-                        <option value="Patrol / Petrol">Patrol / Petrol</option>
-                        <option value="EV">EV Electric</option>
-                        <option value="Hybrid">Hybrid</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-[#111111]">Rating</label>
-                      <div className="flex items-center gap-1 pt-0.5">
+                      <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((num) => (
                           <button
                             key={num}
                             type="button"
                             onClick={() => setRating(num)}
-                            className={`flex-1 h-9 rounded-full text-xs font-extrabold border transition-all cursor-pointer ${
+                            className={`w-8 h-8 rounded-full text-xs font-extrabold border transition-all cursor-pointer ${
                               rating >= num
                                 ? 'bg-[#111111] text-white border-[#111111]'
                                 : 'bg-white text-[#666666] border-[#d4d4d4]'
                             }`}
+                            title={`${num} Star${num > 1 ? 's' : ''}`}
                           >
-                            {num}
+                            ★
                           </button>
                         ))}
                       </div>
                     </div>
-                  </div>
 
-                  <div className="md:col-span-2 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <label className="text-xs font-bold text-[#111111]">Photo</label>
-                      <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#111111] hover:bg-[#262626] text-white text-xs font-extrabold cursor-pointer transition-colors">
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>
-                          {isUploadingReviewPhoto
-                            ? 'Reading...'
-                            : uploadedPhotoName
-                              ? `Selected: ${uploadedPhotoName}`
-                              : 'Select Photo from Device'}
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            e.target.value = '';
-                            if (!file) return;
-                            setIsUploadingReviewPhoto(true);
-                            try {
-                              const asset = await uploadAdminImageFile(file);
-                              setSelectedPhotoUrl(asset.url);
-                              setCustomPhotoUrl('');
-                              setUploadedPhotoName(asset.name);
-                            } finally {
-                              setIsUploadingReviewPhoto(false);
-                            }
-                          }}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsReviewFormOpen(false)}
+                        className="px-4 py-2.5 rounded-full border border-[#d4d4d4] text-xs font-bold text-[#111111] cursor-pointer hover:bg-[#f4f4f4]"
+                      >
+                        Cancel
+                      </button>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {PRESET_CLIENT_PHOTOS.map((preset) => {
-                        const isPicked = !customPhotoUrl && selectedPhotoUrl === preset.url;
-                        return (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPhotoUrl(preset.url);
-                              setCustomPhotoUrl('');
-                              setUploadedPhotoName(null);
-                            }}
-                            className={`p-2 rounded-[16px] border text-left transition-all cursor-pointer flex items-center gap-2 ${
-                              isPicked
-                                ? 'border-2 border-[#111111] bg-[#f4f4f4]'
-                                : 'border-[#e5e5e5] bg-white hover:border-[#111111]'
-                            }`}
-                          >
-                            <img
-                              src={preset.url}
-                              alt={preset.label}
-                              className="w-10 h-10 rounded-lg object-cover shrink-0"
-                            />
-                            <span className="text-[11px] font-bold text-[#111111] leading-tight">
-                              {preset.label}
-                            </span>
-                          </button>
-                        );
-                      })}
+                      {comment.trim() ? (
+                        <a
+                          href={buildReviewWhatsAppUrl()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={handleSendReviewToWhatsApp}
+                          className="px-5 py-2.5 rounded-full bg-[#111111] hover:bg-[#262626] text-white text-xs font-extrabold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                        >
+                          <span>Send to WhatsApp</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-5 py-2.5 rounded-full bg-[#111111]/40 text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-not-allowed"
+                        >
+                          <span>Send to WhatsApp</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
-
-                  <div className="md:col-span-2 space-y-1">
-                    <label className="text-xs font-bold text-[#111111]">Short Review *</label>
-                    <textarea
-                      required
-                      rows={2}
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Write a short note..."
-                      className="w-full px-4 py-2.5 rounded-[18px] border border-[#d4d4d4] text-sm text-[#111111] focus:outline-none focus:border-[#111111]"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 flex items-center justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setIsReviewFormOpen(false)}
-                      className="px-4 py-2.5 rounded-[30px] border border-[#d4d4d4] text-xs font-bold text-[#111111] cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="px-5 py-2.5 rounded-[30px] bg-[#111111] hover:bg-[#262626] text-white text-xs font-extrabold cursor-pointer disabled:opacity-50"
-                    >
-                      {isSubmitting ? 'Posting...' : 'Post Review'}
-                    </button>
-                  </div>
-                </form>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -617,7 +557,7 @@ export function GallerySection({
 
               <button
                 type="button"
-                onClick={() => setIsReviewFormOpen(true)}
+                onClick={openReviewTextBox}
                 className="px-4 py-2 rounded-[30px] border border-[#111111] bg-white hover:bg-[#111111] hover:text-white text-[#111111] text-xs font-extrabold transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <MessageSquarePlus className="w-3.5 h-3.5" />

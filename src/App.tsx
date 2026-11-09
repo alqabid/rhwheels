@@ -45,7 +45,11 @@ import {
 import { ResilientImage } from './components/ResilientImage';
 import { GallerySection } from './components/GallerySection';
 import { NewsItemRecord } from './components/AdminControlSection';
-import { AdminPlatform } from './components/AdminPlatform';
+import { WORKPLACE_SLIDES } from './data/vehicles';
+
+const AdminPlatform = React.lazy(() =>
+  import('./components/AdminPlatform').then((m) => ({ default: m.AdminPlatform }))
+);
 
 const RY_LOGO_TRANSPARENT = '/assets/aistudio/_Logo_e05207a4.png';
 
@@ -321,8 +325,8 @@ export default function App() {
   // --- Interactive Hero Car Motion State ---
   const [carDriveOffset, setCarDriveOffset] = useState(0);
   const [isLaunching, setIsLaunching] = useState(false);
-  const [carTilt, setCarTilt] = useState({ x: 0, y: 0 });
   const speedIntervalRef = useRef<number | null>(null);
+  const sharedAudioCtxRef = useRef<AudioContext | null>(null);
 
   // --- Responsive Viewport Tracker (Mobile / Tablet / Desktop) ---
   const mainScrollRef = useRef<HTMLElement | null>(null);
@@ -332,16 +336,39 @@ export default function App() {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsDesktopViewport(window.innerWidth >= 1024);
+      const next = window.innerWidth >= 1024;
+      setIsDesktopViewport((prev) => (prev === next ? prev : next));
     };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', handleResize, { passive: true });
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Instant scroll reset on page switch (no laggy smooth-scroll delay across tabs)
   useEffect(() => {
-    mainScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
   }, [activePage]);
+
+  // Pre-warm key slideshow and showroom images during browser idle time for 0ms tab switches
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const urlsToWarm = [
+        ...promoSlides.map((s) => s.image),
+        ...SHOWCASE_CARS.slice(0, 6).map((c) => c.image),
+        ...WORKPLACE_SLIDES.slice(0, 2).map((w) => w.imageUrl),
+      ];
+      urlsToWarm.forEach((url) => {
+        if (url) {
+          const img = new Image();
+          img.decoding = 'async';
+          img.src = url;
+        }
+      });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [promoSlides]);
 
   // --- Curved Speedometer / Cycle Arc State (01 - 05) ---
   const [activeArcIndex, setActiveArcIndex] = useState<number>(2);
@@ -354,11 +381,12 @@ export default function App() {
 
   // --- Auto-advance the 2026 Flagship Arrival Slideshow ---
   useEffect(() => {
+    if (activePage !== 'welcome') return;
     const timer = window.setInterval(() => {
       setActivePromoIndex((prev) => (prev + 1) % promoSlides.length);
     }, 6500);
     return () => window.clearInterval(timer);
-  }, [promoSlides.length]);
+  }, [promoSlides.length, activePage]);
 
   // --- Search State ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -550,14 +578,29 @@ export default function App() {
     showToast('Showroom address & contact info updated');
   };
 
+  const getSharedAudioContext = (): AudioContext | null => {
+    try {
+      if (!sharedAudioCtxRef.current) {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!AudioCtx) return null;
+        sharedAudioCtxRef.current = new AudioCtx();
+      }
+      if (sharedAudioCtxRef.current.state === 'suspended') {
+        sharedAudioCtxRef.current.resume().catch(() => {});
+      }
+      return sharedAudioCtxRef.current;
+    } catch {
+      return null;
+    }
+  };
+
   // --- Web Audio Synthesizer for Vehicle Acceleration Sound ---
   const playLaunchSound = () => {
     try {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = getSharedAudioContext();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
@@ -567,7 +610,7 @@ export default function App() {
       osc.frequency.exponentialRampToValueAtTime(140, now + 0.8);
 
       gain.gain.setValueAtTime(0.01, now);
-      gain.gain.linearRampToValueAtTime(0.06, now + 0.12);
+      gain.gain.linearRampToValueAtTime(0.055, now + 0.12);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
 
       osc.connect(gain);
@@ -582,30 +625,27 @@ export default function App() {
   // --- Web Audio Synthesizer for Motorized Garage Door Roll-Up / Roll-Down ---
   const playGarageDoorSound = (direction: 'open' | 'close') => {
     try {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = getSharedAudioContext();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sawtooth';
       const now = ctx.currentTime;
       if (direction === 'open') {
         osc.frequency.setValueAtTime(65, now);
-        osc.frequency.linearRampToValueAtTime(115, now + 0.55);
-        osc.frequency.setValueAtTime(140, now + 0.6);
+        osc.frequency.linearRampToValueAtTime(115, now + 0.45);
+        osc.frequency.setValueAtTime(140, now + 0.5);
       } else {
         osc.frequency.setValueAtTime(115, now);
-        osc.frequency.linearRampToValueAtTime(58, now + 0.55);
+        osc.frequency.linearRampToValueAtTime(58, now + 0.45);
       }
       gain.gain.setValueAtTime(0.008, now);
-      gain.gain.linearRampToValueAtTime(0.035, now + 0.15);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.72);
+      gain.gain.linearRampToValueAtTime(0.03, now + 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.75);
+      osc.stop(now + 0.58);
     } catch {
       // Ignore audio errors
     }
@@ -618,7 +658,7 @@ export default function App() {
     playGarageDoorSound('open');
     window.setTimeout(() => {
       setGarageDoorPhase('open');
-    }, 550);
+    }, 450);
   };
 
   // --- Close Garage Door ---
@@ -632,8 +672,10 @@ export default function App() {
     if (category) setActiveCategory(category);
     if (brandId !== undefined) setSelectedBrandId(brandId);
     setActivePage('showroom');
-    mainScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
   };
 
   // --- Triggered when user touches or clicks the Hero Car ---
@@ -649,17 +691,7 @@ export default function App() {
     window.setTimeout(() => {
       setIsLaunching(false);
       setCarDriveOffset(0);
-    }, 850);
-  };
-
-  const handlePointerMoveOnCar = (e: React.PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relX = (e.clientX - rect.left) / rect.width - 0.5;
-    const relY = (e.clientY - rect.top) / rect.height - 0.5;
-    setCarTilt({
-      x: relX * 20,
-      y: relY * 10,
-    });
+    }, 750);
   };
 
   // --- Open Vehicle Detail Card & Configurator Modal ---
@@ -996,48 +1028,56 @@ export default function App() {
   // =========================================================================
   if (activePage === 'admin') {
     return (
-      <AdminPlatform
-        onExitToStorefront={() => {
-          setActivePage('welcome');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        cars={carsList}
-        onAddCar={handleAdminAddCar}
-        onUpdateCar={handleAdminUpdateCar}
-        onUpdateCarPrice={handleAdminUpdateCarPrice}
-        onDeleteCar={handleAdminDeleteCar}
-        onResetCars={handleAdminResetCars}
-        galleryPhotos={galleryPhotos}
-        onAddGalleryPhoto={handleAdminAddGalleryPhoto}
-        onUpdateGalleryPhoto={handleAdminUpdateGalleryPhoto}
-        onDeleteGalleryPhoto={handleAdminDeleteGalleryPhoto}
-        reviews={clientReviews}
-        onToggleReviewVisibility={handleAdminToggleReviewVisibility}
-        onDeleteReview={handleAdminDeleteReview}
-        newsList={newsList}
-        onAddNews={handleAdminAddNews}
-        onDeleteNews={handleAdminDeleteNews}
-        promoSlides={promoSlides}
-        onUpdatePromoSlide={handleAdminUpdatePromoSlide}
-        reservations={orderHistory.map((o) => ({
-          id: o.id,
-          buyerName: o.buyerName,
-          buyerEmail: o.buyerEmail,
-          buyerPhone: o.buyerPhone,
-          totalAmount: o.totalAmount,
-          locationName: o.locationName,
-          deliveryMode: o.deliveryMode,
-          createdAt: o.createdAt,
-          status: o.status,
-          vehicleSummary: o.items
-            .map((i) => `${i.car.titleLine1} (x${i.quantity})`)
-            .join(', '),
-        }))}
-        onUpdateReservationStatus={handleAdminUpdateReservationStatus}
-        onDeleteReservation={handleAdminDeleteReservation}
-        showroomInfo={showroomInfo}
-        onUpdateShowroomInfo={handleAdminUpdateShowroomInfo}
-      />
+      <React.Suspense
+        fallback={
+          <div className="min-h-screen w-full bg-[#111111] text-white flex items-center justify-center text-sm font-bold">
+            Loading RY WHEELS Admin...
+          </div>
+        }
+      >
+        <AdminPlatform
+          onExitToStorefront={() => {
+            setActivePage('welcome');
+            window.scrollTo(0, 0);
+          }}
+          cars={carsList}
+          onAddCar={handleAdminAddCar}
+          onUpdateCar={handleAdminUpdateCar}
+          onUpdateCarPrice={handleAdminUpdateCarPrice}
+          onDeleteCar={handleAdminDeleteCar}
+          onResetCars={handleAdminResetCars}
+          galleryPhotos={galleryPhotos}
+          onAddGalleryPhoto={handleAdminAddGalleryPhoto}
+          onUpdateGalleryPhoto={handleAdminUpdateGalleryPhoto}
+          onDeleteGalleryPhoto={handleAdminDeleteGalleryPhoto}
+          reviews={clientReviews}
+          onToggleReviewVisibility={handleAdminToggleReviewVisibility}
+          onDeleteReview={handleAdminDeleteReview}
+          newsList={newsList}
+          onAddNews={handleAdminAddNews}
+          onDeleteNews={handleAdminDeleteNews}
+          promoSlides={promoSlides}
+          onUpdatePromoSlide={handleAdminUpdatePromoSlide}
+          reservations={orderHistory.map((o) => ({
+            id: o.id,
+            buyerName: o.buyerName,
+            buyerEmail: o.buyerEmail,
+            buyerPhone: o.buyerPhone,
+            totalAmount: o.totalAmount,
+            locationName: o.locationName,
+            deliveryMode: o.deliveryMode,
+            createdAt: o.createdAt,
+            status: o.status,
+            vehicleSummary: o.items
+              .map((i) => `${i.car.titleLine1} (x${i.quantity})`)
+              .join(', '),
+          }))}
+          onUpdateReservationStatus={handleAdminUpdateReservationStatus}
+          onDeleteReservation={handleAdminDeleteReservation}
+          showroomInfo={showroomInfo}
+          onUpdateShowroomInfo={handleAdminUpdateShowroomInfo}
+        />
+      </React.Suspense>
     );
   }
 
@@ -1619,7 +1659,7 @@ export default function App() {
          ===================================================================== */}
       <main
         ref={mainScrollRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth"
+        className="flex-1 overflow-y-auto overflow-x-hidden"
       >
         {/* ===================================================================
             PAGE 1: RELAXED WELCOME & NEWS PAGE
@@ -1645,30 +1685,27 @@ export default function App() {
                       <img
                         src={RY_LOGO_TRANSPARENT}
                         alt="RY WHEELS"
+                        decoding="async"
+                        fetchPriority="high"
                         className="w-full h-auto object-contain select-none pointer-events-none"
                       />
                     </div>
                   </div>
 
                   {/* Interactive Moving Pearl White Car (Touch, Click, or Drag to Move) */}
-                  <div
-                    onPointerMove={handlePointerMoveOnCar}
-                    onPointerLeave={() => setCarTilt({ x: 0, y: 0 })}
-                    className="relative z-20 -mt-10 sm:-mt-20 lg:-mt-32 mx-auto max-w-[940px] px-1 sm:px-6 select-none"
-                  >
+                  <div className="relative z-20 -mt-10 sm:-mt-20 lg:-mt-32 mx-auto max-w-[940px] px-1 sm:px-6 select-none">
                     <motion.div
                       drag
                       dragConstraints={{ left: -60, right: 60, top: -12, bottom: 12 }}
                       dragElastic={0.25}
                       onTap={handleTouchOrClickHeroCar}
                       animate={{
-                        x: isLaunching ? [0, 68, -16, 0] : carDriveOffset + carTilt.x,
-                        y: carTilt.y,
+                        x: isLaunching ? [0, 68, -16, 0] : carDriveOffset,
                         scale: isLaunching ? [1, 1.04, 1] : 1,
-                        rotateZ: isLaunching ? [0, -1.1, 0.3, 0] : carTilt.x * 0.04,
+                        rotateZ: isLaunching ? [0, -1.1, 0.3, 0] : 0,
                       }}
                       transition={{
-                        duration: isLaunching ? 0.7 : 0.3,
+                        duration: isLaunching ? 0.65 : 0.28,
                         ease: [0.16, 1, 0.3, 1],
                       }}
                       whileHover={{ scale: 1.015 }}
@@ -1692,6 +1729,8 @@ export default function App() {
                       <ResilientImage
                         src={whiteCarCutoutImg}
                         alt="RY WHEELS Pearl White Supercar"
+                        loading="eager"
+                        fetchPriority="high"
                         className="w-full h-auto object-contain pointer-events-none drop-shadow-[0_22px_30px_rgba(0,0,0,0.32)]"
                       />
                     </motion.div>
@@ -1823,6 +1862,8 @@ export default function App() {
                           <ResilientImage
                             src={slide.image}
                             alt={slide.title}
+                            loading="eager"
+                            fetchPriority="high"
                             className="absolute inset-0 w-full h-full object-cover object-center opacity-90"
                           />
                           <div className="relative z-10 flex-1 bg-gradient-to-t from-black/85 via-black/30 to-black/15 p-5 sm:p-8 md:p-10 flex flex-col justify-between gap-4 min-h-[320px] sm:min-h-[420px] md:min-h-[450px] lg:min-h-[490px] xl:min-h-[520px]">
@@ -1950,6 +1991,7 @@ export default function App() {
           <GallerySection
             galleryPhotos={galleryPhotos}
             reviews={clientReviews}
+            whatsappPhone={showroomInfo.phone}
             onAddReview={handleAddClientReview}
             onDeleteReview={handleAdminDeleteReview}
             onEnterShowroom={(cat) => enterShowroom(cat)}
